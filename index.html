@@ -617,6 +617,18 @@
         if (savedClientId) {
             document.getElementById('clientId').value = savedClientId;
         }
+        const savedSheetUrl = localStorage.getItem('roleta_sheet_url');
+        if (savedSheetUrl) {
+            document.getElementById('sheetUrl').value = savedSheetUrl;
+        }
+        const savedSheetName = localStorage.getItem('roleta_sheet_name');
+        if (savedSheetName) {
+            document.getElementById('sheetName').value = savedSheetName;
+        }
+        const savedCol = localStorage.getItem('roleta_col');
+        if (savedCol) {
+            document.getElementById('colIndex').value = savedCol;
+        }
     });
 
     // ==================== AUTH ====================
@@ -797,6 +809,11 @@
             allNames = names;
             remaining = [...allNames];
             drawn = [];
+
+            // Salvar configuracoes no navegador
+            localStorage.setItem('roleta_sheet_url', url);
+            localStorage.setItem('roleta_sheet_name', sheetName);
+            localStorage.setItem('roleta_col', colLetter);
 
             document.getElementById('sheetPanel').classList.add('hidden');
             document.getElementById('mainArea').classList.add('active');
