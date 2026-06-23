@@ -401,30 +401,36 @@
             <li>Apague tudo e cole este codigo:</li>
         </ol>
         <pre style="background:rgba(0,0,0,0.4); padding:12px; border-radius:8px; overflow-x:auto; font-size:0.75rem; margin:10px 0; white-space:pre-wrap;"><code>function doGet(e) {
-  var params = e.parameter || {};
-  var sheetId = params.id || "";
-  var sheetName = params.sheet || "Planilha1";
-  var col = params.col || "A";
-  if (!sheetId) return jsonResponse({error: "ID nao informado."});
+  var p = e.parameter || {};
+  var cb = p.callback || "";
+  var id = p.id || "";
+  var aba = p.sheet || "Planilha1";
+  var col = p.col || "A";
+  if (!id) return resp(cb, {error:"ID nao informado."});
   try {
-    var ss = SpreadsheetApp.openById(sheetId);
-    var sheet = ss.getSheetByName(sheetName);
-    if (!sheet) return jsonResponse({error: "Aba nao encontrada."});
-    var lastRow = sheet.getLastRow();
-    if (lastRow === 0) return jsonResponse({error: "Planilha vazia."});
-    var values = sheet.getRange(col+"1:"+col+lastRow).getValues();
-    var names = [];
-    for (var i = 0; i &lt; values.length; i++) {
-      var val = String(values[i][0]).trim();
-      if (val !== "" &amp;&amp; val !== "undefined") names.push(val);
+    var ss = SpreadsheetApp.openById(id);
+    var sh = ss.getSheetByName(aba);
+    if (!sh) return resp(cb,{error:"Aba nao encontrada."});
+    var lr = sh.getLastRow();
+    if (lr===0) return resp(cb,{error:"Planilha vazia."});
+    var v = sh.getRange(col+"1:"+col+lr).getValues();
+    var n = [];
+    for (var i=0;i&lt;v.length;i++) {
+      var val = String(v[i][0]).trim();
+      if (val!=="" &amp;&amp; val!=="undefined") n.push(val);
     }
-    return jsonResponse({names: names});
+    return resp(cb, {names: n});
   } catch(err) {
-    return jsonResponse({error: err.message});
+    return resp(cb, {error: err.message});
   }
 }
-function jsonResponse(data) {
-  return ContentService.createTextOutput(JSON.stringify(data))
+function resp(cb, data) {
+  var j = JSON.stringify(data);
+  if (cb) return ContentService
+    .createTextOutput(cb+"("+j+")")
+    .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService
+    .createTextOutput(j)
     .setMimeType(ContentService.MimeType.JSON);
 }</code></pre>
         <ol start="4">
@@ -558,7 +564,7 @@ function jsonResponse(data) {
         return match ? match[1] : null;
     }
 
-    async function loadNames() {
+    function loadNames() {
         hideError();
         const scriptUrl = document.getElementById('scriptUrl').value.trim();
         const sheetUrl = document.getElementById('sheetUrl').value.trim();
@@ -584,31 +590,40 @@ function jsonResponse(data) {
         document.getElementById('loading').classList.add('active');
         document.getElementById('btnLoad').disabled = true;
 
-        try {
-            // Garantir que a URL base nao tenha barra no final
-            const baseUrl = scriptUrl.replace(/\/+$/, '');
-            const fullUrl = `${baseUrl}?id=${encodeURIComponent(sheetId)}&sheet=${encodeURIComponent(sheetName)}&col=${encodeURIComponent(colLetter)}`;
+        // Usar JSONP para evitar problemas de CORS
+        const callbackName = '_roletaCallback_' + Date.now();
+        const baseUrl = scriptUrl.replace(/\/+$/, '');
+        const fullUrl = `${baseUrl}?id=${encodeURIComponent(sheetId)}&sheet=${encodeURIComponent(sheetName)}&col=${encodeURIComponent(colLetter)}&callback=${callbackName}`;
 
-            const response = await fetch(fullUrl, { redirect: 'follow' });
+        // Timeout de 15 segundos
+        const timeout = setTimeout(() => {
+            cleanup();
+            showError('Tempo esgotado. Verifique a URL do Apps Script e tente novamente.');
+        }, 15000);
 
-            if (!response.ok) {
-                throw new Error('Erro ao conectar com o Apps Script. Verifique a URL.');
-            }
+        function cleanup() {
+            delete window[callbackName];
+            const s = document.getElementById('jsonp-script');
+            if (s) s.remove();
+            document.getElementById('loading').classList.remove('active');
+            document.getElementById('btnLoad').disabled = false;
+        }
 
-            const text = await response.text();
-            let data;
-            try {
-                data = JSON.parse(text);
-            } catch (parseErr) {
-                throw new Error('Resposta inesperada do Apps Script. Verifique se a implantacao esta correta.');
-            }
+        // Callback global que o JSONP vai chamar
+        window[callbackName] = function(data) {
+            clearTimeout(timeout);
+            cleanup();
 
             if (data.error) {
-                throw new Error(data.error);
+                showError(data.error);
+                document.getElementById('configPanel').classList.remove('hidden');
+                return;
             }
 
             if (!data.names || data.names.length === 0) {
-                throw new Error('Nenhum nome encontrado na planilha.');
+                showError('Nenhum nome encontrado na planilha.');
+                document.getElementById('configPanel').classList.remove('hidden');
+                return;
             }
 
             allNames = data.names;
@@ -625,15 +640,19 @@ function jsonResponse(data) {
             document.getElementById('mainArea').classList.add('active');
             updateStats();
             buildSlot();
+        };
 
-        } catch (err) {
-            showError(err.message || 'Erro ao carregar nomes.');
-            // Mostrar config se falhou no auto-load
+        // Injetar script JSONP
+        const script = document.createElement('script');
+        script.id = 'jsonp-script';
+        script.src = fullUrl;
+        script.onerror = function() {
+            clearTimeout(timeout);
+            cleanup();
+            showError('Erro ao conectar com o Apps Script. Verifique a URL.');
             document.getElementById('configPanel').classList.remove('hidden');
-        } finally {
-            document.getElementById('loading').classList.remove('active');
-            document.getElementById('btnLoad').disabled = false;
-        }
+        };
+        document.body.appendChild(script);
     }
 
     // ==================== ROULETTE ====================

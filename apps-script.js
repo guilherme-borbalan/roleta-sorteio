@@ -1,10 +1,8 @@
 // ============================================================
 // COLE ESTE CODIGO NO GOOGLE APPS SCRIPT (script.google.com)
 // ============================================================
-// IMPORTANTE: Apos colar, va em Implantar > Nova implantacao
-//   Tipo: App da Web
-//   Executar como: Eu
-//   Quem tem acesso: Qualquer pessoa
+// IMPORTANTE: Apos colar, va em Implantar > Gerenciar implantacoes
+//   Clique no lapis > Versao: "Nova versao" > Implantar
 // ============================================================
 
 function doGet(e) {
@@ -12,11 +10,10 @@ function doGet(e) {
   var sheetId = params.id || "";
   var sheetName = params.sheet || "Planilha1";
   var col = params.col || "A";
+  var callback = params.callback || "";
 
   if (!sheetId) {
-    return jsonResponse({
-      error: "Parametro 'id' nao informado. Este script deve ser chamado pela Roleta de Sorteio."
-    });
+    return sendResponse(callback, { error: "ID nao informado." });
   }
 
   try {
@@ -24,12 +21,12 @@ function doGet(e) {
     var sheet = ss.getSheetByName(sheetName);
 
     if (!sheet) {
-      return jsonResponse({ error: "Aba '" + sheetName + "' nao encontrada na planilha." });
+      return sendResponse(callback, { error: "Aba '" + sheetName + "' nao encontrada." });
     }
 
     var lastRow = sheet.getLastRow();
     if (lastRow === 0) {
-      return jsonResponse({ error: "A planilha esta vazia." });
+      return sendResponse(callback, { error: "Planilha vazia." });
     }
 
     var values = sheet.getRange(col + "1:" + col + lastRow).getValues();
@@ -43,17 +40,25 @@ function doGet(e) {
     }
 
     if (names.length === 0) {
-      return jsonResponse({ error: "Nenhum nome encontrado na coluna " + col + "." });
+      return sendResponse(callback, { error: "Nenhum nome encontrado na coluna " + col + "." });
     }
 
-    return jsonResponse({ names: names });
+    return sendResponse(callback, { names: names });
   } catch (err) {
-    return jsonResponse({ error: "Erro: " + err.message });
+    return sendResponse(callback, { error: "Erro: " + err.message });
   }
 }
 
-function jsonResponse(data) {
+function sendResponse(callback, data) {
+  var json = JSON.stringify(data);
+
+  if (callback) {
+    return ContentService
+      .createTextOutput(callback + "(" + json + ")")
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+
   return ContentService
-    .createTextOutput(JSON.stringify(data))
+    .createTextOutput(json)
     .setMimeType(ContentService.MimeType.JSON);
 }
