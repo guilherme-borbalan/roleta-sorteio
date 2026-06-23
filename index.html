@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Roleta de Sorteio</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -25,15 +26,16 @@
             color: #ffd700;
         }
 
+        /* Panel */
         .panel {
             background: rgba(255,255,255,0.08);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255,255,255,0.15);
             border-radius: 16px;
-            padding: 25px 30px;
-            margin: 20px;
+            padding: 30px;
+            margin: 25px;
             width: 90%;
-            max-width: 600px;
+            max-width: 500px;
             text-align: center;
         }
 
@@ -45,29 +47,97 @@
             text-align: left;
         }
 
-        .panel input {
+        .panel select {
             width: 100%;
             padding: 12px 15px;
             border-radius: 10px;
             border: 1px solid rgba(255,255,255,0.2);
-            background: rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.1);
             color: #fff;
             font-size: 1rem;
             margin-bottom: 15px;
             outline: none;
-            transition: border-color 0.3s;
         }
 
-        .panel input:focus { border-color: #ffd700; }
-        .panel input::placeholder { color: #777; }
+        .panel select option { background: #302b63; color: #fff; }
 
-        .config-row {
-            display: flex;
-            gap: 15px;
+        /* Upload area */
+        .upload-area {
+            border: 2px dashed rgba(255,215,0,0.4);
+            border-radius: 16px;
+            padding: 40px 20px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
         }
 
-        .config-row > div { flex: 1; }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #ffd700;
+            background: rgba(255,215,0,0.05);
+        }
 
+        .upload-area.loaded {
+            border-color: #2ecc71;
+            background: rgba(46,204,113,0.08);
+        }
+
+        .upload-area input[type="file"] {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .upload-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .upload-text {
+            font-size: 1rem;
+            color: #ccc;
+        }
+
+        .upload-text strong { color: #ffd700; }
+
+        .file-name {
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: #2ecc71;
+            font-weight: 600;
+        }
+
+        .upload-hint {
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 6px;
+        }
+
+        /* Saved data banner */
+        .saved-banner {
+            background: rgba(46,204,113,0.12);
+            border: 1px solid rgba(46,204,113,0.3);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .saved-banner p {
+            font-size: 0.9rem;
+            color: #2ecc71;
+            margin-bottom: 10px;
+        }
+
+        .saved-banner .saved-count {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #ffd700;
+        }
+
+        /* Buttons */
         .btn {
             padding: 12px 30px;
             border: none;
@@ -115,12 +185,9 @@
             box-shadow: none !important;
         }
 
-        .help-text {
-            font-size: 0.8rem;
-            color: #888;
-            margin-top: -10px;
-            margin-bottom: 12px;
-            text-align: left;
+        .btn-sm {
+            padding: 8px 18px;
+            font-size: 0.85rem;
         }
 
         .error-msg {
@@ -137,48 +204,7 @@
 
         .error-msg.active { display: block; }
 
-        .instructions-toggle {
-            background: none;
-            border: none;
-            color: #ffd700;
-            cursor: pointer;
-            font-size: 0.9rem;
-            padding: 5px 0;
-            text-decoration: underline;
-            display: block;
-            margin: 0 auto 10px;
-        }
-
-        .instructions-content {
-            display: none;
-            background: rgba(0,0,0,0.3);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 15px;
-            font-size: 0.85rem;
-            color: #ccc;
-            line-height: 1.7;
-            text-align: left;
-        }
-
-        .instructions-content.active { display: block; }
-        .instructions-content ol { padding-left: 20px; }
-        .instructions-content li { margin-bottom: 8px; }
-
-        .instructions-content code {
-            background: rgba(255,215,0,0.15);
-            color: #ffd700;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            word-break: break-all;
-        }
-
-        .instructions-content a {
-            color: #74b9ff;
-            text-decoration: underline;
-        }
-
+        /* Main area */
         .main-area {
             display: none;
             flex-direction: column;
@@ -261,6 +287,7 @@
             font-weight: 700;
             color: #fff;
             text-shadow: 0 0 10px rgba(255,215,0,0.3);
+            padding: 0 10px;
         }
 
         .result-display {
@@ -341,27 +368,6 @@
 
         .all-drawn-msg.active { display: block; }
 
-        .loading {
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            margin: 20px 0;
-        }
-
-        .loading.active { display: flex; }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255,255,255,0.1);
-            border-top-color: #ffd700;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin { to { transform: rotate(360deg); } }
-
         #confetti-canvas {
             position: fixed;
             top: 0; left: 0;
@@ -373,9 +379,10 @@
         .hidden { display: none !important; }
 
         @media (max-width: 500px) {
-            h1 { font-size: 1.5rem; }
+            h1 { font-size: 1.5rem; margin-top: 20px; }
+            .panel { padding: 20px; margin: 15px; }
             .slot-window { width: 280px; }
-            .config-row { flex-direction: column; gap: 0; }
+            .upload-area { padding: 30px 15px; }
         }
     </style>
 </head>
@@ -385,88 +392,45 @@
 
 <h1>Roleta de Sorteio</h1>
 
-<!-- Config Panel -->
+<!-- Upload Panel -->
 <div class="panel" id="configPanel">
-    <label for="scriptUrl">URL do Google Apps Script</label>
-    <input type="text" id="scriptUrl" placeholder="https://script.google.com/macros/s/.../exec">
 
-    <button class="instructions-toggle" onclick="document.getElementById('instructions').classList.toggle('active')">
-        Como configurar? (clique para ver)
-    </button>
-
-    <div class="instructions-content" id="instructions">
-        <ol>
-            <li>Acesse <a href="https://script.google.com" target="_blank">script.google.com</a></li>
-            <li>Clique em <strong>"Novo Projeto"</strong></li>
-            <li>Apague tudo e cole este codigo:</li>
-        </ol>
-        <pre style="background:rgba(0,0,0,0.4); padding:12px; border-radius:8px; overflow-x:auto; font-size:0.75rem; margin:10px 0; white-space:pre-wrap;"><code>function doGet(e) {
-  var p = e.parameter || {};
-  var cb = p.callback || "";
-  var id = p.id || "";
-  var aba = p.sheet || "Planilha1";
-  var col = p.col || "A";
-  if (!id) return resp(cb, {error:"ID nao informado."});
-  try {
-    var ss = SpreadsheetApp.openById(id);
-    var sh = ss.getSheetByName(aba);
-    if (!sh) return resp(cb,{error:"Aba nao encontrada."});
-    var lr = sh.getLastRow();
-    if (lr===0) return resp(cb,{error:"Planilha vazia."});
-    var v = sh.getRange(col+"1:"+col+lr).getValues();
-    var n = [];
-    for (var i=0;i&lt;v.length;i++) {
-      var val = String(v[i][0]).trim();
-      if (val!=="" &amp;&amp; val!=="undefined") n.push(val);
-    }
-    return resp(cb, {names: n});
-  } catch(err) {
-    return resp(cb, {error: err.message});
-  }
-}
-function resp(cb, data) {
-  var j = JSON.stringify(data);
-  if (cb) return ContentService
-    .createTextOutput(cb+"("+j+")")
-    .setMimeType(ContentService.MimeType.JAVASCRIPT);
-  return ContentService
-    .createTextOutput(j)
-    .setMimeType(ContentService.MimeType.JSON);
-}</code></pre>
-        <ol start="4">
-            <li>Clique em <strong>Implantar > Nova implantacao</strong></li>
-            <li>Em tipo, selecione <strong>"App da Web"</strong></li>
-            <li>Executar como: <strong>Eu</strong></li>
-            <li>Quem tem acesso: <strong>Qualquer pessoa</strong></li>
-            <li>Clique em <strong>Implantar</strong>, autorize quando pedir</li>
-            <li>Copie a <strong>URL</strong> gerada e cole acima</li>
-        </ol>
-        <p style="margin-top:10px; color:#ffd700;">Essa configuracao e feita apenas uma vez!</p>
+    <!-- Banner de dados salvos (aparece se ja tem nomes no navegador) -->
+    <div class="saved-banner hidden" id="savedBanner">
+        <p>Planilha carregada anteriormente</p>
+        <div class="saved-count" id="savedCount"></div>
+        <div style="margin-top:12px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" onclick="useSavedNames()">Usar estes nomes</button>
+            <button class="btn btn-secondary btn-sm" onclick="clearSaved()">Carregar nova planilha</button>
+        </div>
     </div>
 
-    <label for="sheetUrl">Link da Planilha Google Sheets</label>
-    <input type="text" id="sheetUrl" placeholder="https://docs.google.com/spreadsheets/d/SEU_ID/edit...">
-
-    <div class="config-row">
-        <div>
-            <label for="sheetName">Nome da aba (opcional)</label>
-            <input type="text" id="sheetName" placeholder="Planilha1">
+    <!-- Upload -->
+    <div id="uploadSection">
+        <div class="upload-area" id="uploadArea">
+            <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.ods" onchange="handleFile(this.files[0])">
+            <div class="upload-icon">&#128196;</div>
+            <div class="upload-text">
+                Arraste sua planilha aqui ou <strong>clique para selecionar</strong>
+            </div>
+            <div class="upload-hint">.xlsx, .xls, .csv</div>
+            <div class="file-name hidden" id="fileName"></div>
         </div>
-        <div>
-            <label for="colIndex">Coluna dos nomes</label>
-            <input type="text" id="colIndex" placeholder="A" value="A">
+
+        <div id="colConfig" class="hidden">
+            <label for="colSelect">Coluna com os nomes</label>
+            <select id="colSelect" onchange="updatePreview()"></select>
+
+            <div id="preview" style="text-align:left; margin-bottom:15px;">
+                <p style="font-size:0.8rem; color:#888; margin-bottom:5px;">Primeiros nomes encontrados:</p>
+                <div id="previewNames" style="font-size:0.9rem; color:#ccc;"></div>
+            </div>
+
+            <button class="btn btn-primary" onclick="confirmNames()">Iniciar Sorteio</button>
         </div>
     </div>
 
     <div id="errorMsg" class="error-msg"></div>
-
-    <button class="btn btn-primary" id="btnLoad" onclick="loadNames()">Carregar Nomes</button>
-</div>
-
-<!-- Loading -->
-<div class="loading" id="loading">
-    <div class="spinner"></div>
-    <span>Carregando nomes da planilha...</span>
 </div>
 
 <!-- Main Area -->
@@ -504,10 +468,10 @@ function resp(cb, data) {
     <div class="buttons">
         <button class="btn btn-primary" id="btnSpin" onclick="spin()">Girar!</button>
         <button class="btn btn-danger" id="btnReset" onclick="resetDraw()">Resetar</button>
-        <button class="btn btn-secondary" id="btnConfig" onclick="showConfig()">Configuracoes</button>
+        <button class="btn btn-secondary" onclick="showConfig()">Nova Planilha</button>
     </div>
 
-    <div class="drawn-list" id="drawnList">
+    <div class="drawn-list">
         <h3>Nomes ja sorteados:</h3>
         <div class="drawn-names" id="drawnNames"></div>
     </div>
@@ -518,6 +482,7 @@ function resp(cb, data) {
     let remaining = [];
     let drawn = [];
     let isSpinning = false;
+    let sheetData = {}; // { colName: [values] }
 
     const COLORS = [
         '#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6',
@@ -528,27 +493,35 @@ function resp(cb, data) {
 
     // ==================== INIT ====================
     window.addEventListener('load', () => {
-        // Restaurar valores salvos
-        const fields = {
-            'roleta_script_url': 'scriptUrl',
-            'roleta_sheet_url': 'sheetUrl',
-            'roleta_sheet_name': 'sheetName',
-            'roleta_col': 'colIndex'
-        };
-        for (const [key, id] of Object.entries(fields)) {
-            const val = localStorage.getItem(key);
-            if (val) document.getElementById(id).value = val;
+        const saved = localStorage.getItem('roleta_names');
+        if (saved) {
+            try {
+                const names = JSON.parse(saved);
+                if (names.length > 0) {
+                    document.getElementById('savedBanner').classList.remove('hidden');
+                    document.getElementById('savedCount').textContent = names.length + ' nomes';
+                    document.getElementById('uploadSection').classList.add('hidden');
+                }
+            } catch(e) {}
         }
 
-        // Se ja tem tudo configurado, carregar automaticamente
-        const scriptUrl = localStorage.getItem('roleta_script_url');
-        const sheetUrl = localStorage.getItem('roleta_sheet_url');
-        if (scriptUrl && sheetUrl) {
-            loadNames();
-        }
+        // Drag and drop
+        const area = document.getElementById('uploadArea');
+        area.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            area.classList.add('dragover');
+        });
+        area.addEventListener('dragleave', () => area.classList.remove('dragover'));
+        area.addEventListener('drop', (e) => {
+            e.preventDefault();
+            area.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
     });
 
-    // ==================== LOADING ====================
+    // ==================== FILE HANDLING ====================
     function showError(msg) {
         const el = document.getElementById('errorMsg');
         el.textContent = msg;
@@ -559,113 +532,163 @@ function resp(cb, data) {
         document.getElementById('errorMsg').classList.remove('active');
     }
 
-    function extractSheetId(url) {
-        const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-        return match ? match[1] : null;
+    function handleFile(file) {
+        hideError();
+        if (!file) return;
+
+        const validTypes = [
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-excel',
+            'text/csv',
+            'application/vnd.oasis.opendocument.spreadsheet'
+        ];
+
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!['xlsx','xls','csv','ods'].includes(ext)) {
+            showError('Formato nao suportado. Use .xlsx, .xls ou .csv');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 'A', defval: '' });
+
+                if (jsonData.length === 0) {
+                    showError('A planilha esta vazia.');
+                    return;
+                }
+
+                // Get all column keys
+                sheetData = {};
+                const allKeys = new Set();
+                jsonData.forEach(row => Object.keys(row).forEach(k => allKeys.add(k)));
+
+                allKeys.forEach(key => {
+                    sheetData[key] = jsonData
+                        .map(row => String(row[key] || '').trim())
+                        .filter(v => v !== '');
+                });
+
+                // Update UI
+                document.getElementById('uploadArea').classList.add('loaded');
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('fileName').classList.remove('hidden');
+
+                // Populate column selector
+                const select = document.getElementById('colSelect');
+                select.innerHTML = '';
+                allKeys.forEach(key => {
+                    const opt = document.createElement('option');
+                    opt.value = key;
+                    const firstVal = sheetData[key]?.[0] || '';
+                    opt.textContent = `Coluna ${key} (ex: "${firstVal}")`;
+                    select.appendChild(opt);
+                });
+
+                document.getElementById('colConfig').classList.remove('hidden');
+                updatePreview();
+
+            } catch(err) {
+                showError('Erro ao ler o arquivo: ' + err.message);
+            }
+        };
+        reader.readAsArrayBuffer(file);
     }
 
-    function loadNames() {
-        hideError();
-        const scriptUrl = document.getElementById('scriptUrl').value.trim();
-        const sheetUrl = document.getElementById('sheetUrl').value.trim();
-        const sheetName = document.getElementById('sheetName').value.trim() || 'Planilha1';
-        const colLetter = (document.getElementById('colIndex').value.trim() || 'A').toUpperCase();
+    function updatePreview() {
+        const col = document.getElementById('colSelect').value;
+        const names = sheetData[col] || [];
+        const preview = names.slice(0, 5).join(', ');
+        const more = names.length > 5 ? ` ... e mais ${names.length - 5}` : '';
+        document.getElementById('previewNames').textContent = preview + more;
+    }
 
-        if (!scriptUrl) {
-            showError('Por favor, insira a URL do Google Apps Script.');
+    function confirmNames() {
+        const col = document.getElementById('colSelect').value;
+        const names = sheetData[col] || [];
+
+        if (names.length === 0) {
+            showError('Nenhum nome encontrado nessa coluna.');
             return;
         }
 
-        if (!sheetUrl) {
-            showError('Por favor, insira o link da planilha.');
-            return;
-        }
+        allNames = names;
+        remaining = [...allNames];
+        drawn = [];
 
-        const sheetId = extractSheetId(sheetUrl);
-        if (!sheetId) {
-            showError('Link da planilha invalido.');
-            return;
-        }
+        // Salvar no navegador
+        localStorage.setItem('roleta_names', JSON.stringify(allNames));
 
-        document.getElementById('loading').classList.add('active');
-        document.getElementById('btnLoad').disabled = true;
+        startRoulette();
+    }
 
-        // Usar JSONP para evitar problemas de CORS
-        const callbackName = '_roletaCallback_' + Date.now();
-        const baseUrl = scriptUrl.replace(/\/+$/, '');
-        const fullUrl = `${baseUrl}?id=${encodeURIComponent(sheetId)}&sheet=${encodeURIComponent(sheetName)}&col=${encodeURIComponent(colLetter)}&callback=${callbackName}`;
-
-        // Timeout de 15 segundos
-        const timeout = setTimeout(() => {
-            cleanup();
-            showError('Tempo esgotado. Verifique a URL do Apps Script e tente novamente.');
-        }, 15000);
-
-        function cleanup() {
-            delete window[callbackName];
-            const s = document.getElementById('jsonp-script');
-            if (s) s.remove();
-            document.getElementById('loading').classList.remove('active');
-            document.getElementById('btnLoad').disabled = false;
-        }
-
-        // Callback global que o JSONP vai chamar
-        window[callbackName] = function(data) {
-            clearTimeout(timeout);
-            cleanup();
-
-            if (data.error) {
-                showError(data.error);
-                document.getElementById('configPanel').classList.remove('hidden');
-                return;
-            }
-
-            if (!data.names || data.names.length === 0) {
-                showError('Nenhum nome encontrado na planilha.');
-                document.getElementById('configPanel').classList.remove('hidden');
-                return;
-            }
-
-            allNames = data.names;
+    function useSavedNames() {
+        const saved = localStorage.getItem('roleta_names');
+        if (saved) {
+            allNames = JSON.parse(saved);
             remaining = [...allNames];
             drawn = [];
+            startRoulette();
+        }
+    }
 
-            // Salvar tudo no navegador
-            localStorage.setItem('roleta_script_url', scriptUrl);
-            localStorage.setItem('roleta_sheet_url', sheetUrl);
-            localStorage.setItem('roleta_sheet_name', sheetName);
-            localStorage.setItem('roleta_col', colLetter);
+    function clearSaved() {
+        localStorage.removeItem('roleta_names');
+        document.getElementById('savedBanner').classList.add('hidden');
+        document.getElementById('uploadSection').classList.remove('hidden');
+    }
 
-            document.getElementById('configPanel').classList.add('hidden');
-            document.getElementById('mainArea').classList.add('active');
-            updateStats();
-            buildSlot();
-        };
+    function startRoulette() {
+        document.getElementById('configPanel').classList.add('hidden');
+        document.getElementById('mainArea').classList.add('active');
+        updateStats();
+        buildSlot();
+    }
 
-        // Injetar script JSONP
-        const script = document.createElement('script');
-        script.id = 'jsonp-script';
-        script.src = fullUrl;
-        script.onerror = function() {
-            clearTimeout(timeout);
-            cleanup();
-            showError('Erro ao conectar com o Apps Script. Verifique a URL.');
-            document.getElementById('configPanel').classList.remove('hidden');
-        };
-        document.body.appendChild(script);
+    function showConfig() {
+        document.getElementById('mainArea').classList.remove('active');
+        document.getElementById('configPanel').classList.remove('hidden');
+
+        // Reset upload UI
+        document.getElementById('uploadArea').classList.remove('loaded');
+        document.getElementById('fileName').classList.add('hidden');
+        document.getElementById('colConfig').classList.add('hidden');
+        document.getElementById('fileInput').value = '';
+        sheetData = {};
+
+        // Show saved banner if names exist
+        const saved = localStorage.getItem('roleta_names');
+        if (saved) {
+            const names = JSON.parse(saved);
+            document.getElementById('savedBanner').classList.remove('hidden');
+            document.getElementById('savedCount').textContent = names.length + ' nomes';
+            document.getElementById('uploadSection').classList.add('hidden');
+        } else {
+            document.getElementById('savedBanner').classList.add('hidden');
+            document.getElementById('uploadSection').classList.remove('hidden');
+        }
+
+        allNames = [];
+        remaining = [];
+        drawn = [];
+        document.getElementById('drawnNames').innerHTML = '';
     }
 
     // ==================== ROULETTE ====================
-    function updateStats() {
-        document.getElementById('totalCount').textContent = allNames.length;
-        document.getElementById('remainCount').textContent = remaining.length;
-        document.getElementById('drawnCount').textContent = drawn.length;
-    }
-
     function escapeHtml(str) {
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
+    }
+
+    function updateStats() {
+        document.getElementById('totalCount').textContent = allNames.length;
+        document.getElementById('remainCount').textContent = remaining.length;
+        document.getElementById('drawnCount').textContent = drawn.length;
     }
 
     function buildSlot() {
@@ -747,15 +770,6 @@ function resp(cb, data) {
 
         updateStats();
         buildSlot();
-    }
-
-    function showConfig() {
-        document.getElementById('mainArea').classList.remove('active');
-        document.getElementById('configPanel').classList.remove('hidden');
-        allNames = [];
-        remaining = [];
-        drawn = [];
-        document.getElementById('drawnNames').innerHTML = '';
     }
 
     // ==================== CONFETTI ====================
