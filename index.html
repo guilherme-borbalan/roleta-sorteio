@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roleta de Sorteio</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            margin-top: 30px;
+            font-size: 2.2rem;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+            color: #ffd700;
+        }
+
+        /* Panels */
+        .panel {
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 16px;
+            padding: 25px 30px;
+            margin: 20px;
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .panel label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.95rem;
+            color: #ccc;
+            text-align: left;
+        }
+
+        .panel input {
+            width: 100%;
+            padding: 12px 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            font-size: 1rem;
+            margin-bottom: 15px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .panel input:focus { border-color: #ffd700; }
+        .panel input::placeholder { color: #777; }
+
+        .config-row {
+            display: flex;
+            gap: 15px;
+        }
+
+        .config-row > div { flex: 1; }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #ffd700, #ff8c00);
+            color: #1a1a2e;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 215, 0, 0.4);
+        }
+
+        .btn-google {
+            background: #fff;
+            color: #333;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 28px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .btn-google:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255,255,255,0.3);
+        }
+
+        .btn-google svg { flex-shrink: 0; }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4757, #ff6b81);
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 71, 87, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .btn-secondary:hover { background: rgba(255,255,255,0.25); }
+
+        .btn:disabled, .btn-google:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        /* Auth status */
+        .auth-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 12px 0;
+            font-size: 0.9rem;
+        }
+
+        .auth-status .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff4757;
+        }
+
+        .auth-status .dot.connected { background: #2ecc71; }
+
+        .auth-status .user-email {
+            color: #ffd700;
+            font-weight: 600;
+        }
+
+        /* Instructions */
+        .instructions {
+            text-align: left;
+            margin: 15px 0;
+        }
+
+        .instructions-toggle {
+            background: none;
+            border: none;
+            color: #ffd700;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 5px 0;
+            text-decoration: underline;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .instructions-content {
+            display: none;
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: #ccc;
+            line-height: 1.7;
+        }
+
+        .instructions-content.active { display: block; }
+
+        .instructions-content ol { padding-left: 20px; }
+        .instructions-content li { margin-bottom: 8px; }
+
+        .instructions-content code {
+            background: rgba(255,215,0,0.15);
+            color: #ffd700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        .instructions-content a {
+            color: #74b9ff;
+            text-decoration: underline;
+        }
+
+        /* Help text */
+        .help-text {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: -10px;
+            margin-bottom: 12px;
+            text-align: left;
+        }
+
+        /* Error */
+        .error-msg {
+            background: rgba(255,71,87,0.15);
+            border: 1px solid rgba(255,71,87,0.4);
+            color: #ff6b81;
+            padding: 12px 20px;
+            border-radius: 10px;
+            margin: 10px 0;
+            display: none;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .error-msg.active { display: block; }
+
+        /* Main area */
+        .main-area {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 90%;
+            max-width: 700px;
+            margin-top: 10px;
+        }
+
+        .main-area.active { display: flex; }
+
+        /* Stats */
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px;
+            padding: 12px 24px;
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .stat-card .number {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #ffd700;
+        }
+
+        .stat-card .label {
+            font-size: 0.8rem;
+            color: #aaa;
+            margin-top: 2px;
+        }
+
+        /* Slot machine */
+        .slot-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px 0;
+        }
+
+        .slot-container.active { display: flex; }
+
+        .slot-window {
+            width: 350px;
+            height: 80px;
+            background: rgba(0,0,0,0.4);
+            border: 3px solid #ffd700;
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .slot-track {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            transition: none;
+        }
+
+        .slot-track.animating {
+            transition: top 3s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+        }
+
+        .slot-name {
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255,215,0,0.3);
+        }
+
+        /* Result */
+        .result-display {
+            margin: 15px 0;
+            padding: 15px 40px;
+            background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,140,0,0.15));
+            border: 2px solid #ffd700;
+            border-radius: 16px;
+            text-align: center;
+            display: none;
+        }
+
+        .result-display.active { display: block; }
+
+        .result-display .congrats {
+            font-size: 0.9rem;
+            color: #ffd700;
+            margin-bottom: 5px;
+        }
+
+        .result-display .name {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 0 0 15px rgba(255,215,0,0.5);
+        }
+
+        .buttons {
+            display: flex;
+            gap: 15px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .drawn-list {
+            width: 100%;
+            max-width: 500px;
+            margin: 15px 0 30px;
+        }
+
+        .drawn-list h3 {
+            font-size: 1rem;
+            color: #aaa;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .drawn-names {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .drawn-tag {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.15);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: #ccc;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .all-drawn-msg {
+            text-align: center;
+            padding: 20px;
+            color: #ffd700;
+            font-size: 1.2rem;
+            display: none;
+        }
+
+        .all-drawn-msg.active { display: block; }
+
+        .loading {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .loading.active { display: flex; }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top-color: #ffd700;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #confetti-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .hidden { display: none !important; }
+
+        .divider {
+            width: 100%;
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+            margin: 18px 0;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            color: #ffd700;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        @media (max-width: 500px) {
+            h1 { font-size: 1.5rem; }
+            .slot-window { width: 280px; }
+            .config-row { flex-direction: column; gap: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+
+<h1>Roleta de Sorteio</h1>
+
+<!-- Step 1: Auth Setup -->
+<div class="panel" id="authPanel">
+    <div class="section-title">1. Configurar acesso ao Google</div>
+
+    <label for="clientId">Client ID do Google</label>
+    <input type="text" id="clientId" placeholder="xxxxxxxxx.apps.googleusercontent.com">
+
+    <button class="instructions-toggle" onclick="toggleInstructions()">
+        Como obter o Client ID? (clique para ver)
+    </button>
+
+    <div class="instructions-content" id="instructions">
+        <ol>
+            <li>Acesse o <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a></li>
+            <li>Crie um novo projeto (ou selecione um existente)</li>
+            <li>No menu lateral, va em <strong>APIs e Servicos > Biblioteca</strong></li>
+            <li>Pesquise <code>Google Sheets API</code> e clique em <strong>Ativar</strong></li>
+            <li>Agora va em <strong>APIs e Servicos > Tela de consentimento OAuth</strong></li>
+            <li>Selecione <strong>Externo</strong>, preencha o nome do app (ex: "Roleta Sorteio") e seu e-mail. Clique em salvar.</li>
+            <li>Na tela de consentimento, adicione o escopo: <code>Google Sheets API (.../auth/spreadsheets.readonly)</code></li>
+            <li>Em <strong>Usuarios de teste</strong>, adicione o seu proprio e-mail Google</li>
+            <li>Va em <strong>APIs e Servicos > Credenciais</strong></li>
+            <li>Clique em <strong>Criar credenciais > ID do cliente OAuth</strong></li>
+            <li>Tipo de aplicativo: <strong>Aplicativo da Web</strong></li>
+            <li>Em <strong>Origens JavaScript autorizadas</strong>, adicione:<br>
+                <code>http://localhost:8080</code><br>
+                (ou a URL de onde esta servindo a pagina)
+            </li>
+            <li>Clique em <strong>Criar</strong> e copie o <strong>Client ID</strong></li>
+        </ol>
+    </div>
+
+    <div id="errorMsgAuth" class="error-msg"></div>
+
+    <div class="auth-status" id="authStatus" style="display:none;">
+        <span class="dot connected"></span>
+        <span>Conectado como <span class="user-email" id="userEmail"></span></span>
+    </div>
+
+    <div style="margin-top: 10px;">
+        <button class="btn-google" id="btnGoogle" onclick="signIn()">
+            <svg width="20" height="20" viewBox="0 0 48 48">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+            </svg>
+            Entrar com Google
+        </button>
+    </div>
+</div>
+
+<!-- Step 2: Sheet config (appears after auth) -->
+<div class="panel hidden" id="sheetPanel">
+    <div class="auth-status">
+        <span class="dot connected"></span>
+        <span>Conectado como <span class="user-email" id="userEmail2"></span></span>
+        <button class="btn-secondary" style="padding:6px 14px; font-size:0.8rem; margin-left:8px;" onclick="signOut()">Sair</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-title">2. Selecionar planilha</div>
+
+    <label for="sheetUrl">Link da Planilha Google Sheets</label>
+    <input type="text" id="sheetUrl" placeholder="https://docs.google.com/spreadsheets/d/SEU_ID/edit...">
+    <p class="help-text">Pode ser uma planilha privada da sua conta. Basta colar o link.</p>
+
+    <div class="config-row">
+        <div>
+            <label for="sheetName">Nome da aba (opcional)</label>
+            <input type="text" id="sheetName" placeholder="Planilha1">
+        </div>
+        <div>
+            <label for="colIndex">Coluna dos nomes</label>
+            <input type="text" id="colIndex" placeholder="A" value="A">
+        </div>
+    </div>
+
+    <div id="errorMsg" class="error-msg"></div>
+
+    <button class="btn btn-primary" id="btnLoad" onclick="loadNames()">Carregar Nomes</button>
+</div>
+
+<!-- Loading -->
+<div class="loading" id="loading">
+    <div class="spinner"></div>
+    <span>Carregando nomes da planilha...</span>
+</div>
+
+<!-- Main Area (Roulette) -->
+<div class="main-area" id="mainArea">
+    <div class="stats">
+        <div class="stat-card">
+            <div class="number" id="totalCount">0</div>
+            <div class="label">Total</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" id="remainCount">0</div>
+            <div class="label">Restantes</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" id="drawnCount">0</div>
+            <div class="label">Sorteados</div>
+        </div>
+    </div>
+
+    <div class="slot-container active" id="slotContainer">
+        <div class="slot-window">
+            <div class="slot-track" id="slotTrack"></div>
+        </div>
+    </div>
+
+    <div class="result-display" id="resultDisplay">
+        <div class="congrats">Sorteado:</div>
+        <div class="name" id="resultName"></div>
+    </div>
+
+    <div class="all-drawn-msg" id="allDrawnMsg">
+        Todos os nomes foram sorteados! Clique em "Resetar" para recomecar.
+    </div>
+
+    <div class="buttons">
+        <button class="btn btn-primary" id="btnSpin" onclick="spin()">Girar!</button>
+        <button class="btn btn-danger" id="btnReset" onclick="resetDraw()">Resetar</button>
+        <button class="btn btn-secondary" id="btnConfig" onclick="showConfig()">Trocar Planilha</button>
+    </div>
+
+    <div class="drawn-list" id="drawnList">
+        <h3>Nomes ja sorteados:</h3>
+        <div class="drawn-names" id="drawnNames"></div>
+    </div>
+</div>
+
+<script>
+    // ==================== STATE ====================
+    let allNames = [];
+    let remaining = [];
+    let drawn = [];
+    let isSpinning = false;
+    let accessToken = null;
+    let tokenClient = null;
+
+    const COLORS = [
+        '#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6',
+        '#1abc9c', '#e67e22', '#e84393', '#00b894', '#6c5ce7',
+        '#fd79a8', '#00cec9', '#ff7675', '#74b9ff', '#a29bfe',
+        '#55efc4', '#fdcb6e', '#fab1a0', '#81ecec', '#dfe6e9'
+    ];
+
+    // ==================== INIT ====================
+    window.addEventListener('load', () => {
+        const savedClientId = localStorage.getItem('roleta_client_id');
+        if (savedClientId) {
+            document.getElementById('clientId').value = savedClientId;
+        }
+    });
+
+    // ==================== AUTH ====================
+    function toggleInstructions() {
+        document.getElementById('instructions').classList.toggle('active');
+    }
+
+    function showAuthError(msg) {
+        const el = document.getElementById('errorMsgAuth');
+        el.textContent = msg;
+        el.classList.add('active');
+    }
+
+    function hideAuthError() {
+        document.getElementById('errorMsgAuth').classList.remove('active');
+    }
+
+    function signIn() {
+        hideAuthError();
+
+        const clientId = document.getElementById('clientId').value.trim();
+        if (!clientId) {
+            showAuthError('Por favor, insira o Client ID do Google.');
+            return;
+        }
+
+        localStorage.setItem('roleta_client_id', clientId);
+
+        try {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: clientId,
+                scope: 'https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/userinfo.email',
+                callback: handleTokenResponse,
+                error_callback: (err) => {
+                    showAuthError('Erro na autenticacao: ' + (err.message || 'Popup fechado ou bloqueado.'));
+                }
+            });
+
+            tokenClient.requestAccessToken();
+        } catch (err) {
+            showAuthError('Erro ao iniciar autenticacao. Verifique o Client ID.');
+        }
+    }
+
+    async function handleTokenResponse(response) {
+        if (response.error) {
+            showAuthError('Erro: ' + response.error);
+            return;
+        }
+
+        accessToken = response.access_token;
+
+        // Fetch user email
+        try {
+            const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+                headers: { 'Authorization': 'Bearer ' + accessToken }
+            });
+            const data = await res.json();
+            const email = data.email || 'usuario';
+
+            document.getElementById('userEmail').textContent = email;
+            document.getElementById('userEmail2').textContent = email;
+        } catch (e) {
+            document.getElementById('userEmail').textContent = 'usuario';
+            document.getElementById('userEmail2').textContent = 'usuario';
+        }
+
+        // Show auth success, then show sheet panel
+        document.getElementById('authStatus').style.display = 'flex';
+        document.getElementById('btnGoogle').textContent = 'Conectado!';
+        document.getElementById('btnGoogle').disabled = true;
+
+        // After brief delay, switch panels
+        setTimeout(() => {
+            document.getElementById('authPanel').classList.add('hidden');
+            document.getElementById('sheetPanel').classList.remove('hidden');
+        }, 800);
+    }
+
+    function signOut() {
+        if (accessToken) {
+            google.accounts.oauth2.revoke(accessToken, () => {});
+        }
+        accessToken = null;
+        tokenClient = null;
+
+        document.getElementById('authPanel').classList.remove('hidden');
+        document.getElementById('sheetPanel').classList.add('hidden');
+        document.getElementById('mainArea').classList.remove('active');
+        document.getElementById('authStatus').style.display = 'none';
+        document.getElementById('btnGoogle').textContent = 'Entrar com Google';
+        document.getElementById('btnGoogle').disabled = false;
+
+        allNames = [];
+        remaining = [];
+        drawn = [];
+    }
+
+    // ==================== SHEET LOADING ====================
+    function showError(msg) {
+        const el = document.getElementById('errorMsg');
+        el.textContent = msg;
+        el.classList.add('active');
+    }
+
+    function hideError() {
+        document.getElementById('errorMsg').classList.remove('active');
+    }
+
+    function extractSheetId(url) {
+        const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+        return match ? match[1] : null;
+    }
+
+    async function loadNames() {
+        hideError();
+        const url = document.getElementById('sheetUrl').value.trim();
+        const sheetName = document.getElementById('sheetName').value.trim() || 'Planilha1';
+        const colLetter = (document.getElementById('colIndex').value.trim() || 'A').toUpperCase();
+
+        if (!url) {
+            showError('Por favor, insira o link da planilha.');
+            return;
+        }
+
+        const sheetId = extractSheetId(url);
+        if (!sheetId) {
+            showError('Link invalido. Use o link completo da planilha do Google Sheets.');
+            return;
+        }
+
+        if (!accessToken) {
+            showError('Voce precisa estar autenticado. Faca login novamente.');
+            return;
+        }
+
+        document.getElementById('loading').classList.add('active');
+        document.getElementById('btnLoad').disabled = true;
+
+        try {
+            // Use Sheets API v4 to read the column
+            const range = `${sheetName}!${colLetter}:${colLetter}`;
+            const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}`;
+
+            const response = await fetch(apiUrl, {
+                headers: { 'Authorization': 'Bearer ' + accessToken }
+            });
+
+            if (response.status === 401) {
+                // Token expired, re-authenticate
+                showError('Sessao expirada. Clique em "Sair" e faca login novamente.');
+                return;
+            }
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => null);
+                const errMsg = errData?.error?.message || `Erro ${response.status}`;
+                throw new Error(errMsg);
+            }
+
+            const data = await response.json();
+            const rows = data.values || [];
+
+            const names = [];
+            for (const row of rows) {
+                if (row[0] != null) {
+                    const name = String(row[0]).trim();
+                    if (name.length > 0) {
+                        names.push(name);
+                    }
+                }
+            }
+
+            if (names.length === 0) {
+                throw new Error(`Nenhum nome encontrado na coluna ${colLetter} da aba "${sheetName}".`);
+            }
+
+            allNames = names;
+            remaining = [...allNames];
+            drawn = [];
+
+            document.getElementById('sheetPanel').classList.add('hidden');
+            document.getElementById('mainArea').classList.add('active');
+            updateStats();
+            buildSlot();
+
+        } catch (err) {
+            showError(err.message || 'Erro ao carregar a planilha.');
+        } finally {
+            document.getElementById('loading').classList.remove('active');
+            document.getElementById('btnLoad').disabled = false;
+        }
+    }
+
+    // ==================== ROULETTE ====================
+    function updateStats() {
+        document.getElementById('totalCount').textContent = allNames.length;
+        document.getElementById('remainCount').textContent = remaining.length;
+        document.getElementById('drawnCount').textContent = drawn.length;
+    }
+
+    function buildSlot() {
+        const track = document.getElementById('slotTrack');
+        if (remaining.length > 0) {
+            track.innerHTML = `<div class="slot-name">${escapeHtml(remaining[0])}</div>`;
+            track.style.top = '0px';
+        }
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function spin() {
+        if (isSpinning) return;
+        if (remaining.length === 0) return;
+
+        isSpinning = true;
+        document.getElementById('btnSpin').disabled = true;
+        document.getElementById('resultDisplay').classList.remove('active');
+        document.getElementById('allDrawnMsg').classList.remove('active');
+
+        const winnerIdx = Math.floor(Math.random() * remaining.length);
+        const winner = remaining[winnerIdx];
+
+        const track = document.getElementById('slotTrack');
+        const itemHeight = 80;
+
+        const totalItems = 30 + Math.floor(Math.random() * 15);
+        let html = '';
+        for (let i = 0; i < totalItems - 1; i++) {
+            const randomName = allNames[Math.floor(Math.random() * allNames.length)];
+            html += `<div class="slot-name">${escapeHtml(randomName)}</div>`;
+        }
+        html += `<div class="slot-name">${escapeHtml(winner)}</div>`;
+
+        track.innerHTML = html;
+        track.style.top = '0px';
+        track.classList.remove('animating');
+
+        void track.offsetHeight;
+
+        requestAnimationFrame(() => {
+            track.classList.add('animating');
+            const finalTop = -((totalItems - 1) * itemHeight);
+            track.style.top = finalTop + 'px';
+        });
+
+        setTimeout(() => {
+            remaining.splice(winnerIdx, 1);
+            drawn.push(winner);
+
+            document.getElementById('resultName').textContent = winner;
+            document.getElementById('resultDisplay').classList.add('active');
+
+            const tag = document.createElement('span');
+            tag.className = 'drawn-tag';
+            tag.textContent = winner;
+            document.getElementById('drawnNames').appendChild(tag);
+
+            updateStats();
+            launchConfetti();
+
+            isSpinning = false;
+            document.getElementById('btnSpin').disabled = false;
+
+            if (remaining.length === 0) {
+                document.getElementById('allDrawnMsg').classList.add('active');
+                document.getElementById('btnSpin').disabled = true;
+            }
+
+            track.classList.remove('animating');
+        }, 3200);
+    }
+
+    function resetDraw() {
+        remaining = [...allNames];
+        drawn = [];
+        isSpinning = false;
+
+        document.getElementById('drawnNames').innerHTML = '';
+        document.getElementById('resultDisplay').classList.remove('active');
+        document.getElementById('allDrawnMsg').classList.remove('active');
+        document.getElementById('btnSpin').disabled = false;
+
+        updateStats();
+        buildSlot();
+    }
+
+    function showConfig() {
+        document.getElementById('mainArea').classList.remove('active');
+        document.getElementById('sheetPanel').classList.remove('hidden');
+        allNames = [];
+        remaining = [];
+        drawn = [];
+        document.getElementById('drawnNames').innerHTML = '';
+    }
+
+    // ==================== CONFETTI ====================
+    function launchConfetti() {
+        const canvas = document.getElementById('confetti-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const pieces = [];
+        for (let i = 0; i < 120; i++) {
+            pieces.push({
+                x: canvas.width / 2 + (Math.random() - 0.5) * 200,
+                y: canvas.height / 2,
+                vx: (Math.random() - 0.5) * 15,
+                vy: -(Math.random() * 12 + 4),
+                w: Math.random() * 10 + 5,
+                h: Math.random() * 6 + 3,
+                color: COLORS[Math.floor(Math.random() * COLORS.length)],
+                rotation: Math.random() * 360,
+                rotSpeed: (Math.random() - 0.5) * 15,
+                gravity: 0.25 + Math.random() * 0.15,
+                opacity: 1
+            });
+        }
+
+        let frame = 0;
+        const maxFrames = 150;
+
+        function animate() {
+            frame++;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (frame > maxFrames) return;
+
+            for (const p of pieces) {
+                p.x += p.vx;
+                p.vy += p.gravity;
+                p.y += p.vy;
+                p.rotation += p.rotSpeed;
+                p.vx *= 0.99;
+                if (frame > maxFrames - 30) p.opacity = Math.max(0, p.opacity - 0.035);
+
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate((p.rotation * Math.PI) / 180);
+                ctx.globalAlpha = p.opacity;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                ctx.restore();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    }
+
+    // ==================== MISC ====================
+    document.getElementById('sheetUrl').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') loadNames();
+    });
+
+    document.getElementById('clientId').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') signIn();
+    });
+
+    window.addEventListener('resize', () => {
+        const canvas = document.getElementById('confetti-canvas');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+</script>
+
+</body>
+</html>
