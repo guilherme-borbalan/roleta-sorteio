@@ -401,9 +401,11 @@
             <li>Apague tudo e cole este codigo:</li>
         </ol>
         <pre style="background:rgba(0,0,0,0.4); padding:12px; border-radius:8px; overflow-x:auto; font-size:0.75rem; margin:10px 0; white-space:pre-wrap;"><code>function doGet(e) {
-  var sheetId = e.parameter.id;
-  var sheetName = e.parameter.sheet || "Planilha1";
-  var col = e.parameter.col || "A";
+  var params = e.parameter || {};
+  var sheetId = params.id || "";
+  var sheetName = params.sheet || "Planilha1";
+  var col = params.col || "A";
+  if (!sheetId) return jsonResponse({error: "ID nao informado."});
   try {
     var ss = SpreadsheetApp.openById(sheetId);
     var sheet = ss.getSheetByName(sheetName);
@@ -583,14 +585,23 @@ function jsonResponse(data) {
         document.getElementById('btnLoad').disabled = true;
 
         try {
-            const url = `${scriptUrl}?id=${sheetId}&sheet=${encodeURIComponent(sheetName)}&col=${colLetter}`;
-            const response = await fetch(url);
+            // Garantir que a URL base nao tenha barra no final
+            const baseUrl = scriptUrl.replace(/\/+$/, '');
+            const fullUrl = `${baseUrl}?id=${encodeURIComponent(sheetId)}&sheet=${encodeURIComponent(sheetName)}&col=${encodeURIComponent(colLetter)}`;
+
+            const response = await fetch(fullUrl, { redirect: 'follow' });
 
             if (!response.ok) {
                 throw new Error('Erro ao conectar com o Apps Script. Verifique a URL.');
             }
 
-            const data = await response.json();
+            const text = await response.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (parseErr) {
+                throw new Error('Resposta inesperada do Apps Script. Verifique se a implantacao esta correta.');
+            }
 
             if (data.error) {
                 throw new Error(data.error);
